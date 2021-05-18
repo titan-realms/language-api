@@ -1,4 +1,4 @@
-package net.titanrealms.api.languageapi.storage;
+package net.titanrealms.api.languageapi.repositories;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -43,9 +43,13 @@ public class LanguageRepository {
     }
 
     @Bean
-    public Class<Map<Language, Map<String, String>>> getLanguageClazz() {
+    private Class<Map<Language, Map<String, String>>> getLanguageClazz() {
         Map<Language, Map<String, String>> map = new HashMap<>();
         return (Class<Map<Language, Map<String, String>>>) map.getClass();
+    }
+
+    public Map<ServerType, Map<Language, Map<String, LangString>>> getLanguageKeys() {
+        return this.languageKeys;
     }
 
     @PostConstruct
