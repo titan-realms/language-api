@@ -4,13 +4,13 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueType;
-import net.titanrealms.api.languageapi.config.GitHubConfiguration;
 import net.titanrealms.api.languageapi.models.language.Language;
 import net.titanrealms.api.languageapi.models.server.ServerType;
 import net.titanrealms.lang.formatter.strings.LangString;
 import net.titanrealms.lang.formatter.strings.MultiLineLangString;
 import net.titanrealms.lang.formatter.strings.SingleLineLangString;
 import org.kohsuke.github.GHRepository;
+import org.kohsuke.github.GitHub;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,8 +38,8 @@ public class LanguageRepository {
     private final Logger logger = LoggerFactory.getLogger(LanguageRepository.class);
 
     @Autowired
-    public LanguageRepository(GitHubConfiguration gitHubConfiguration) throws IOException {
-        this.repository = gitHubConfiguration.getClient().getOrganization("titan-realms").getRepository("lang");
+    public LanguageRepository(GitHub gitHubClient) throws IOException {
+        this.repository = gitHubClient.getOrganization("titan-realms").getRepository("lang");
     }
 
     @Bean
@@ -55,7 +55,7 @@ public class LanguageRepository {
     @PostConstruct
     private void loadLanguages() throws IOException {
         Map<ServerType, Map<Language, Map<String, LangString>>> newLanguageKeys = new EnumMap<>(ServerType.class);
-        File baseFile = this.getZipFiles(this.repository);
+        File baseFile = this.getAndUnzipRepo(this.repository);
         for (File serverDir : baseFile.listFiles()) { // global, prison-cell, etc..
             if (serverDir.isDirectory()) {
                 ServerType serverType = ServerType.valueOf(serverDir.getName().toUpperCase().replace('-', '_'));
@@ -91,7 +91,7 @@ public class LanguageRepository {
         return languageKeys;
     }
 
-    private File getZipFiles(GHRepository repository) throws IOException {
+    private File getAndUnzipRepo(GHRepository repository) throws IOException {
         return repository.readZip(input -> {
             try (ZipInputStream zipInputStream = new ZipInputStream(input)) {
                 File workDir = new File("/tmp/private-api");
@@ -119,6 +119,9 @@ public class LanguageRepository {
                             }
                         }
                     }
+                }
+                if (zipDirName == null) {
+                    throw new IllegalStateException("No directory name found. Was zip file empty?");
                 }
                 return workDir.toPath().resolve(zipDirName).toFile();
             }
