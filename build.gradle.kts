@@ -21,7 +21,7 @@ dependencies {
     // github api client
     implementation("org.kohsuke:github-api:1.127")
     // HOCON files
-    implementation("com.typesafe:config:1.4.1")
+    implementation("com.typesafe:config:1.4.2")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     //runtimeOnly ("io.micrometer:micrometer-registry-influx")
