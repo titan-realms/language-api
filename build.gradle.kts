@@ -3,7 +3,7 @@ plugins {
     id("org.springframework.boot") version "2.6.6"
     id("io.spring.dependency-management") version "1.0.11.RELEASE"
     id("com.github.johnrengelman.shadow") version "7.0.0"
-    id("io.freefair.lombok") version "5.3.0"
+    id("io.freefair.lombok") version "5.3.3.3"
 }
 
 group = "net.titanrealms.api"
