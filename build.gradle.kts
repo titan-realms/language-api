@@ -27,7 +27,7 @@ dependencies {
     //runtimeOnly ("io.micrometer:micrometer-registry-influx")
 
     // API Documentation
-    annotationProcessor("io.swagger.core.v3:swagger-annotations:2.1.7")
+    annotationProcessor("io.swagger.core.v3:swagger-annotations:2.2.0")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     // Display API documentation
     developmentOnly("org.springdoc:springdoc-openapi-ui:1.5.2")
