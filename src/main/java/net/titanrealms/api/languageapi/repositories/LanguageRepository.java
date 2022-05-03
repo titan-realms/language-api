@@ -6,9 +6,8 @@ import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueType;
 import net.titanrealms.api.languageapi.models.language.Language;
 import net.titanrealms.api.languageapi.models.server.ServerType;
-import net.titanrealms.lang.formatter.strings.LangString;
-import net.titanrealms.lang.formatter.strings.MultiLineLangString;
-import net.titanrealms.lang.formatter.strings.SingleLineLangString;
+import org.kohsuke.github.GHMyself;
+import org.kohsuke.github.GHOrganization;
 import org.kohsuke.github.GHRepository;
 import org.kohsuke.github.GitHub;
 import org.slf4j.Logger;
@@ -27,19 +26,20 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 @Repository
 public class LanguageRepository {
-    private Map<ServerType, Map<Language, Map<String, LangString>>> languageKeys;
+    private Map<ServerType, Map<Language, Map<String, String>>> languageKeys;
     private final GHRepository repository;
 
     private final Logger logger = LoggerFactory.getLogger(LanguageRepository.class);
 
     @Autowired
-    public LanguageRepository(GitHub gitHubClient) throws IOException {
-        this.repository = gitHubClient.getOrganization("titan-realms").getRepository("lang");
+    public LanguageRepository(GitHub apiClient) throws IOException {
+        this.repository = apiClient.getOrganization("titan-realms").getRepository("lang");
     }
 
     @Bean
@@ -48,21 +48,21 @@ public class LanguageRepository {
         return (Class<Map<Language, Map<String, String>>>) map.getClass();
     }
 
-    public Map<ServerType, Map<Language, Map<String, LangString>>> getLanguageKeys() {
+    public Map<ServerType, Map<Language, Map<String, String>>> getLanguageKeys() {
         return this.languageKeys;
     }
 
     @PostConstruct
     private void loadLanguages() throws IOException {
-        Map<ServerType, Map<Language, Map<String, LangString>>> newLanguageKeys = new EnumMap<>(ServerType.class);
+        Map<ServerType, Map<Language, Map<String, String>>> newLanguageKeys = new EnumMap<>(ServerType.class);
         File baseFile = this.getAndUnzipRepo(this.repository);
         for (File serverDir : baseFile.listFiles()) { // global, prison-cell, etc..
             if (serverDir.isDirectory()) {
                 ServerType serverType = ServerType.valueOf(serverDir.getName().toUpperCase().replace('-', '_'));
-                Map<Language, Map<String, LangString>> languageMap = new EnumMap<>(Language.class);
+                Map<Language, Map<String, String>> languageMap = new EnumMap<>(Language.class);
                 for (File languageFile : serverDir.listFiles()) { // en_UK.conf, etc..
                     Language language = Language.fromLangFile(languageFile.getName());
-                    Map<String, LangString> langStrings = this.parseLanguage(ConfigFactory.parseFile(languageFile));
+                    Map<String, String> langStrings = this.parseLanguage(ConfigFactory.parseFile(languageFile));
                     languageMap.put(language, langStrings);
                 }
                 newLanguageKeys.put(serverType, languageMap);
@@ -74,16 +74,16 @@ public class LanguageRepository {
         System.out.println(this.languageKeys);
     }
 
-    private Map<String, LangString> parseLanguage(Config config) {
-        Map<String, LangString> languageKeys = new HashMap<>();
+    private Map<String, String> parseLanguage(Config config) {
+        Map<String, String> languageKeys = new HashMap<>();
         for (String key : config.root().keySet()) {
             ConfigValue configValue = config.getValue(key);
             if (configValue.valueType() == ConfigValueType.STRING) {
                 String value = (String) configValue.unwrapped();
-                languageKeys.put(key, new SingleLineLangString(key, value));
+                languageKeys.put(key, value);
             } else if (configValue.valueType() == ConfigValueType.LIST) {
                 List<String> value = (List<String>) configValue.unwrapped();
-                languageKeys.put(key, new MultiLineLangString(key, value));
+                languageKeys.put(key, value.stream().collect(Collectors.joining("\n")));
             } else {
                 this.logger.error("Mismatched language key? " + configValue.origin() + " with value " + configValue);
             }

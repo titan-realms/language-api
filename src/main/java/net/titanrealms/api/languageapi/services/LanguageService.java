@@ -3,7 +3,6 @@ package net.titanrealms.api.languageapi.services;
 import net.titanrealms.api.languageapi.models.language.Language;
 import net.titanrealms.api.languageapi.models.server.ServerType;
 import net.titanrealms.api.languageapi.repositories.LanguageRepository;
-import net.titanrealms.lang.formatter.strings.LangString;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
@@ -21,7 +20,7 @@ public class LanguageService {
     }
 
     @NonNull
-    public Map<Language, Map<String, LangString>> getServerPack(@PathVariable ServerType serverType) {
+    public Map<Language, Map<String, String>> getServerPack(@PathVariable ServerType serverType) {
         return this.languageRepository.getLanguageKeys().get(serverType);
     }
 }
