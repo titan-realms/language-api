@@ -19,7 +19,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
 
     // github api client
-    implementation("org.kohsuke:github-api:1.127")
+    implementation("org.kohsuke:github-api:1.306")
     // HOCON files
     implementation("com.typesafe:config:1.4.2")
 
