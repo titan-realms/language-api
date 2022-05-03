@@ -30,7 +30,7 @@ dependencies {
     annotationProcessor("io.swagger.core.v3:swagger-annotations:2.2.0")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     // Display API documentation
-    developmentOnly("org.springdoc:springdoc-openapi-ui:1.5.2")
+    developmentOnly("org.springdoc:springdoc-openapi-ui:1.6.8")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.restdocs:spring-restdocs-mockmvc")
