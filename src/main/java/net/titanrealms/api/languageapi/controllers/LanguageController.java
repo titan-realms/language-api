@@ -5,6 +5,7 @@ import net.titanrealms.api.languageapi.models.language.Language;
 import net.titanrealms.api.languageapi.models.server.ServerType;
 import net.titanrealms.api.languageapi.services.LanguageService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -16,8 +17,8 @@ import java.util.Map;
 public class LanguageController {
     private final LanguageService languageService;
 
-    @GetMapping("/")
-    public Map<Language, Map<String, String>> getServerPack(ServerType serverType) {
+    @GetMapping("/{serverType}/")
+    public Map<Language, Map<String, String>> getServerPack(@PathVariable ServerType serverType) {
         return this.languageService.getServerPack(serverType);
     }
 }

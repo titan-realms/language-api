@@ -1,22 +1,22 @@
 package net.titanrealms.api.languageapi.repositories;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueType;
 import net.titanrealms.api.languageapi.models.language.Language;
 import net.titanrealms.api.languageapi.models.server.ServerType;
-import org.kohsuke.github.GHMyself;
-import org.kohsuke.github.GHOrganization;
+import org.kohsuke.github.GHCommit;
 import org.kohsuke.github.GHRepository;
 import org.kohsuke.github.GitHub;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Repository;
+import redis.clients.jedis.Jedis;
 
-import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -25,35 +25,59 @@ import java.nio.channels.FileChannel;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 @Repository
 public class LanguageRepository {
-    private Map<ServerType, Map<Language, Map<String, String>>> languageKeys;
-    private final GHRepository repository;
+    private static final Logger LOGGER = LoggerFactory.getLogger(LanguageRepository.class);
 
-    private final Logger logger = LoggerFactory.getLogger(LanguageRepository.class);
+    private final GHRepository repository;
+    private final ObjectMapper objectMapper;
+    private final Jedis jedis;
+
+    private Map<ServerType, Map<Language, Map<String, String>>> languageKeys;
+    private String currentCommitSha;
 
     @Autowired
-    public LanguageRepository(GitHub apiClient) throws IOException {
+    public LanguageRepository(GitHub apiClient, ObjectMapper objectMapper, Jedis jedis) throws IOException {
         this.repository = apiClient.getOrganization("titan-realms").getRepository("lang");
-    }
-
-    @Bean
-    private Class<Map<Language, Map<String, String>>> getLanguageClazz() {
-        Map<Language, Map<String, String>> map = new HashMap<>();
-        return (Class<Map<Language, Map<String, String>>>) map.getClass();
+        this.objectMapper = objectMapper;
+        this.jedis = jedis;
     }
 
     public Map<ServerType, Map<Language, Map<String, String>>> getLanguageKeys() {
         return this.languageKeys;
     }
 
-    @PostConstruct
-    private void loadLanguages() throws IOException {
+    @Scheduled(initialDelay = 0, fixedRate = 30, timeUnit = TimeUnit.SECONDS)
+    protected void updateLanguages() throws IOException {
+        GHCommit latestCommit = this.repository.listCommits().toList().get(0);
+        String latestSha = latestCommit.getSHA1();
+        if (latestSha.equals(this.currentCommitSha)) {
+            LOGGER.info("No new changes found (current sha: {})", this.currentCommitSha);
+        } else {
+            LOGGER.info("Updating lang (current: {} previous: {})", latestSha, this.currentCommitSha);
+            this.currentCommitSha = latestSha;
+
+            Map<ServerType, Map<Language, Map<String, String>>> newValues = this.loadLanguages();
+
+            for (Map.Entry<ServerType, Map<Language, Map<String, String>>> entry : newValues.entrySet()) {
+                if (this.languageKeys != null && this.languageKeys.get(entry.getKey()).equals(entry.getValue()))
+                    continue;
+                // server type lang has changed
+                LOGGER.info("Notifying " + entry.getKey() + " servers of language changes");
+                this.jedis.publish("language_api_change_" + entry.getKey().toString(), this.objectMapper.writeValueAsString(entry.getValue()));
+            }
+
+            this.languageKeys = newValues;
+        }
+    }
+
+    private Map<ServerType, Map<Language, Map<String, String>>> loadLanguages() throws IOException {
         Map<ServerType, Map<Language, Map<String, String>>> newLanguageKeys = new EnumMap<>(ServerType.class);
         File baseFile = this.getAndUnzipRepo(this.repository);
         for (File serverDir : baseFile.listFiles()) { // global, prison-cell, etc..
@@ -68,10 +92,18 @@ public class LanguageRepository {
                 newLanguageKeys.put(serverType, languageMap);
             }
         }
-        this.languageKeys = newLanguageKeys;
         baseFile.delete();
 
-        System.out.println(this.languageKeys);
+        LOGGER.info("Loaded languages for {} server types:", newLanguageKeys.size());
+        for (Map.Entry<ServerType, Map<Language, Map<String, String>>> entry : newLanguageKeys.entrySet()) {
+            LOGGER.info("----- [ {} ] -----", entry.getKey());
+            for (Map.Entry<Language, Map<String, String>> innerEntry : entry.getValue().entrySet()) {
+                LOGGER.info("{}: {} strings", innerEntry.getKey().toString().toLowerCase(Locale.ROOT), innerEntry.getValue().size());
+            }
+            LOGGER.info("-------------------");
+        }
+
+        return newLanguageKeys;
     }
 
     private Map<String, String> parseLanguage(Config config) {
@@ -83,9 +115,9 @@ public class LanguageRepository {
                 languageKeys.put(key, value);
             } else if (configValue.valueType() == ConfigValueType.LIST) {
                 List<String> value = (List<String>) configValue.unwrapped();
-                languageKeys.put(key, value.stream().collect(Collectors.joining("\n")));
+                languageKeys.put(key, String.join("\n", value));
             } else {
-                this.logger.error("Mismatched language key? " + configValue.origin() + " with value " + configValue);
+                LOGGER.error("Mismatched language key? " + configValue.origin() + " with value " + configValue);
             }
         }
         return languageKeys;
@@ -94,13 +126,12 @@ public class LanguageRepository {
     private File getAndUnzipRepo(GHRepository repository) throws IOException {
         return repository.readZip(input -> {
             try (ZipInputStream zipInputStream = new ZipInputStream(input)) {
-                File workDir = new File("/tmp/private-api");
+                File workDir = new File("tmp");
                 this.createIfAbsent(workDir);
                 String zipDirName = null;
                 ZipEntry zipEntry;
                 while ((zipEntry = zipInputStream.getNextEntry()) != null) {
                     File unpacked = new File(workDir, zipEntry.getName());
-                    System.out.println(unpacked);
                     if (zipEntry.isDirectory()) {
                         unpacked.mkdirs();
                         if (zipDirName == null) {
