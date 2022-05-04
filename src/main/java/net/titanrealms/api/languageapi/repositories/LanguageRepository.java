@@ -17,11 +17,14 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Repository;
 import redis.clients.jedis.Jedis;
 
+import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -92,7 +95,10 @@ public class LanguageRepository {
                 newLanguageKeys.put(serverType, languageMap);
             }
         }
-        baseFile.delete();
+        boolean deleteResult = baseFile.delete();
+
+        if (!deleteResult)
+            LOGGER.warn("Failed to delete temp language files for some reason");
 
         LOGGER.info("Loaded languages for {} server types:", newLanguageKeys.size());
         for (Map.Entry<ServerType, Map<Language, Map<String, String>>> entry : newLanguageKeys.entrySet()) {
@@ -163,5 +169,11 @@ public class LanguageRepository {
         if (!file.exists()) {
             file.mkdirs();
         }
+    }
+
+    @PreDestroy
+    public void cleanup() throws IOException {
+        Path tempPath = Path.of("tmp");
+        Files.delete(tempPath);
     }
 }
