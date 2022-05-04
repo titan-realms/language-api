@@ -2,7 +2,6 @@ plugins {
     java
     id("org.springframework.boot") version "2.6.7"
     id("io.spring.dependency-management") version "1.0.11.RELEASE"
-    id("com.github.johnrengelman.shadow") version "7.1.2"
     id("io.freefair.lombok") version "6.4.3"
 }
 
