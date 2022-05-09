@@ -52,11 +52,7 @@ public class LanguageRepository {
         this.jedis = jedis;
     }
 
-    public Map<ServerType, Map<Language, Map<String, String>>> getLanguageKeys() {
-        return this.languageKeys;
-    }
-
-    @Scheduled(initialDelay = 0, fixedRate = 30, timeUnit = TimeUnit.SECONDS)
+    @Scheduled(initialDelay = 0, fixedRate = 1, timeUnit = TimeUnit.MINUTES)
     protected void updateLanguages() throws IOException {
         GHCommit latestCommit = this.repository.listCommits().toList().get(0);
         String latestSha = latestCommit.getSHA1();
@@ -106,8 +102,8 @@ public class LanguageRepository {
             for (Map.Entry<Language, Map<String, String>> innerEntry : entry.getValue().entrySet()) {
                 LOGGER.info("{}: {} strings", innerEntry.getKey().toString().toLowerCase(Locale.ROOT), innerEntry.getValue().size());
             }
-            LOGGER.info("-------------------");
         }
+        LOGGER.info("-------------------");
 
         return newLanguageKeys;
     }
@@ -121,7 +117,7 @@ public class LanguageRepository {
                 languageKeys.put(key, value);
             } else if (configValue.valueType() == ConfigValueType.LIST) {
                 List<String> value = (List<String>) configValue.unwrapped();
-                languageKeys.put(key, String.join("\n", value));
+                languageKeys.put(key, String.join("<newLine>", value));
             } else {
                 LOGGER.error("Mismatched language key? " + configValue.origin() + " with value " + configValue);
             }
@@ -175,5 +171,9 @@ public class LanguageRepository {
     public void cleanup() throws IOException {
         Path tempPath = Path.of("tmp");
         Files.delete(tempPath);
+    }
+
+    public Map<ServerType, Map<Language, Map<String, String>>> getLanguageKeys() {
+        return this.languageKeys;
     }
 }
