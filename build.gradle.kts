@@ -15,7 +15,7 @@ repositories {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("redis.clients:jedis:4.2.2")
+    implementation("redis.clients:jedis:4.4.8")
 
     // github api client
     implementation("org.kohsuke:github-api:1.306")
