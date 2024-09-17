@@ -18,7 +18,7 @@ dependencies {
     implementation("redis.clients:jedis:4.2.2")
 
     // github api client
-    implementation("org.kohsuke:github-api:1.306")
+    implementation("org.kohsuke:github-api:1.326")
     // HOCON files
     implementation("com.typesafe:config:1.4.2")
 
